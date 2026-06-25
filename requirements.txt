@@ -1,0 +1,17 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-Bcrypt==1.0.1
+Flask-Cors==4.0.1
+
+SQLAlchemy==2.0.36
+gunicorn==22.0.0
+
+opencv-python==4.10.0.84
+numpy
+requests
+
+tensorflow==2.21.0
+deepface==0.0.93
+mtcnn==1.0.0
+telethon==1.43.2
