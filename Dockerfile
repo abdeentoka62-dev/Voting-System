@@ -13,7 +13,7 @@ libgl1
 libglib2.0-0 
 libsm6 
 libxext6 
-libxrender-dev 
+libxrender1 
 libgomp1 
 && rm -rf /var/lib/apt/lists/*
 
@@ -30,4 +30,4 @@ WORKDIR /app/voting-system
 
 EXPOSE 8080
 
-CMD ["gunicorn","--bind","0.0.0.0:8080","run:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "run:application"]
