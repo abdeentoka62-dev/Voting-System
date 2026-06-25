@@ -1,40 +1,22 @@
-import subprocess
-import sys
 import os
+import sys
 
-def install_deps():
-    print("📦 Installing requirements...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r",
-                           "backend/requirements.txt", "-q"])
+# Make backend importable
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 
-def generate_images():
-    if not os.path.exists("frontend/static/images/default-candidate.jpg"):
-        print("🖼️  Generating default candidate images...")
-        subprocess.call([sys.executable, "generate_default_image.py"])
+sys.path.insert(0, BACKEND_DIR)
+
+from app import app, db, seed_data
+
+# Initialize database
+with app.app_context():
+    db.create_all()
+    seed_data()
+
+# This is what Gunicorn will load
+application = app
 
 if __name__ == "__main__":
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    install_deps()
-    generate_images()
-    print("\n🚀 Starting server at: http://127.0.0.1:5000")
-    print("📋 Admin credentials: National ID = admin | Password = Admin@2026\n")
-    
-    # Change to backend directory and run app
-    sys.path.insert(0, os.path.join(os.getcwd(), 'backend'))
-    os.chdir("backend")
-    
-    # Import Flask app and initialize database
-    from app import app, db
-    
-    # Create database tables and seed data
-    with app.app_context():
-        print("📊 Initializing database...")
-        db.create_all()
-        
-        # Import and run seed_data
-        from app import seed_data
-        seed_data()
-        print("✅ Database ready!\n")
-    
-    # Run the Flask app (disable reloader to avoid path issues)
-    app.run(debug=True, port=5000, use_reloader=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
