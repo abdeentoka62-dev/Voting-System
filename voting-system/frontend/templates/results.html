@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>النتائج - نظام التصويت</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .winner-card {
+      background: linear-gradient(135deg, #fffbeb, #fef3c7);
+      border: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 2rem; text-align: center;
+      box-shadow: 0 8px 32px rgba(200,168,75,0.2);
+      margin-bottom: 2rem;
+      position: relative; overflow: hidden;
+    }
+    .winner-card::before {
+      content: '🏆';
+      position: absolute; top: -20px; right: -20px;
+      font-size: 8rem; opacity: 0.08;
+    }
+    .winner-photo {
+      width: 120px; height: 120px; border-radius: 50%;
+      object-fit: cover; border: 5px solid var(--accent);
+      box-shadow: 0 8px 24px rgba(200,168,75,0.3);
+      margin: 0 auto 1rem; display: block;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="/home" class="navbar-brand">🗳️ <span>نظام التصويت</span></a>
+  <div class="navbar-nav">
+    <a href="/home" class="nav-link">🏠 <span>الرئيسية</span></a>
+    <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,0.5);padding:0.4rem 1rem;font-size:0.85rem;" onclick="doLogout()">خروج</button>
+  </div>
+</nav>
+
+<div style="background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:#fff; padding:2rem; text-align:center;">
+  <h1 style="font-size:1.8rem; font-weight:900;">📊 نتائج الانتخابات</h1>
+  <p style="opacity:0.85; margin-top:0.5rem;">النتائج تُحدَّث تلقائياً كل 30 ثانية</p>
+</div>
+
+<div class="container page-content">
+  <div id="results-wrap">
+    <div style="text-align:center; padding:3rem;">
+      <div class="spinner"></div>
+      <p style="color:var(--text-muted);">جاري تحميل النتائج...</p>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  async function loadResults() {
+    const results = await API.get("/api/results");
+    const wrap = document.getElementById("results-wrap");
+    if (!results.length) {
+      wrap.innerHTML = '<div class="card text-center"><p style="color:var(--text-muted);">لا توجد نتائج بعد</p></div>';
+      return;
+    }
+
+    const total = results.reduce((s, r) => s + r.votes, 0);
+    const winner = results[0];
+
+    let html = "";
+
+    // Winner card
+    if (winner.votes > 0) {
+      html += `
+        <div class="winner-card">
+          <div style="font-size:1rem; font-weight:700; color:var(--accent-dark); margin-bottom:0.75rem;">🏆 المتصدر حالياً</div>
+          <img class="winner-photo" src="${'/static/images/default-candidate.jpg'}" alt="${winner.name}">
+          <h2 style="font-size:1.5rem; font-weight:900; color:var(--primary);">${winner.name}</h2>
+          <p style="color:var(--text-muted);">${winner.party || "مستقل"}</p>
+          <div style="font-size:2.5rem; font-weight:900; color:var(--accent); margin-top:0.5rem;">${winner.percentage}%</div>
+          <div style="color:var(--text-muted); font-size:0.9rem;">${winner.votes} صوت من أصل ${total}</div>
+        </div>`;
+    }
+
+    // All results
+    html += '<div class="card">';
+    html += `<h3 style="font-size:1.2rem; font-weight:800; margin-bottom:1.5rem; color:var(--primary);">📈 تفاصيل النتائج</h3>`;
+
+    results.forEach((r, i) => {
+      const isFirst = i === 0 && r.votes > 0;
+      html += `
+        <div class="result-item">
+          <div class="result-header">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <div style="width:32px;height:32px;border-radius:50%;background:${isFirst?'var(--accent)':'var(--border)'};color:${isFirst?'#fff':'var(--text-muted)'};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;">${i+1}</div>
+              <div>
+                <div class="result-name">${r.name}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">${r.party || "مستقل"}</div>
+              </div>
+            </div>
+            <div class="result-votes">${r.votes} صوت</div>
+          </div>
+          <div class="result-bar-wrap">
+            <div class="result-bar ${isFirst?'gold':''}" style="width:0%" data-width="${r.percentage}%"></div>
+          </div>
+          <div class="result-percent">${r.percentage}%</div>
+        </div>`;
+    });
+
+    html += `<div style="text-align:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--text-muted); font-size:0.9rem;">
+      إجمالي الأصوات: <strong style="color:var(--primary);">${total}</strong>
+    </div>`;
+    html += '</div>';
+
+    wrap.innerHTML = html;
+
+    // Animate bars
+    setTimeout(() => {
+      document.querySelectorAll(".result-bar").forEach(bar => {
+        bar.style.width = bar.dataset.width;
+      });
+    }, 100);
+  }
+
+  async function doLogout() {
+    await API.post("/api/logout", {});
+    window.location.href = "/login";
+  }
+
+  loadResults();
+  setInterval(loadResults, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>التصويت - نظام التصويت</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .vote-header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: #fff; padding: 2rem; text-align: center;
+    }
+    .confirm-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; backdrop-filter: blur(4px);
+    }
+    .modal-card {
+      background: #fff; border-radius: var(--radius);
+      padding: 2rem; max-width: 400px; width: 90%;
+      box-shadow: var(--shadow-lg); text-align: center;
+      animation: pop-in 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="/home" class="navbar-brand">🗳️ <span>نظام التصويت</span></a>
+  <div class="navbar-nav">
+    <span id="user-name" style="color:#fff; font-weight:700;"></span>
+    <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,0.5);padding:0.4rem 1rem;font-size:0.85rem;" onclick="doLogout()">خروج</button>
+  </div>
+</nav>
+
+<div class="vote-header">
+  <h1 style="font-size:1.8rem; font-weight:900; margin-bottom:0.5rem;">🗳️ صفحة التصويت</h1>
+  <p style="opacity:0.85;">اختر مرشحاً واحداً فقط — صوتك سري ومحمي</p>
+</div>
+
+<div class="container page-content">
+  <div id="alert-box"></div>
+
+  <!-- Already voted -->
+  <div id="already-voted" class="hidden">
+    <div class="card text-center">
+      <div style="font-size:4rem; margin-bottom:1rem;">✅</div>
+      <h2 style="font-size:1.5rem; font-weight:800; color:var(--success);">لقد صوّتت بالفعل</h2>
+      <p style="color:var(--text-muted); margin:1rem 0;">شكراً لمشاركتك في الانتخابات</p>
+      <a href="/results" class="btn btn-primary">📊 عرض النتائج</a>
+    </div>
+  </div>
+
+  <!-- Voting form -->
+  <div id="voting-section">
+    <div class="card mb-3">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <h2 style="font-size:1.3rem; font-weight:800; color:var(--primary);">اختر مرشحك</h2>
+          <p style="color:var(--text-muted); font-size:0.9rem;">انقر على المرشح لاختياره</p>
+        </div>
+        <div id="selected-info" style="display:none; background:#fef3c7; padding:0.6rem 1.2rem; border-radius:20px; font-weight:700; color:var(--accent-dark);">
+          ✓ اخترت: <span id="selected-name"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="candidates-grid" id="candidates-grid">
+      <div style="text-align:center; padding:3rem; grid-column:1/-1;">
+        <div class="spinner"></div>
+        <p style="color:var(--text-muted);">جاري تحميل المرشحين...</p>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-top:2rem;">
+      <button class="btn btn-accent" style="font-size:1.1rem; padding:1rem 3rem;" onclick="showConfirm()" id="submit-btn" disabled>
+        🗳️ تأكيد التصويت
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="confirm-modal hidden" id="confirm-modal">
+  <div class="modal-card">
+    <div style="font-size:3rem; margin-bottom:1rem;">🗳️</div>
+    <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:0.5rem;">تأكيد التصويت</h3>
+    <p style="color:var(--text-muted); margin-bottom:1.5rem;">
+      هل أنت متأكد من التصويت لـ<br>
+      <strong id="modal-candidate-name" style="color:var(--primary); font-size:1.1rem;"></strong>؟
+    </p>
+    <div class="alert alert-warning" style="text-align:right; margin-bottom:1.5rem;">
+      ⚠️ لا يمكن التراجع عن التصويت بعد التأكيد
+    </div>
+    <div style="display:flex; gap:1rem;">
+      <button class="btn btn-success" style="flex:1;" onclick="submitVote()" id="confirm-vote-btn">
+        ✅ نعم، أؤكد
+      </button>
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  let selectedId = null;
+  let selectedNameText = "";
+
+  async function init() {
+    const data = await requireAuth();
+    if (!data) return;
+    document.getElementById("user-name").textContent = "👤 " + data.name;
+
+    if (data.has_voted) {
+      document.getElementById("voting-section").classList.add("hidden");
+      document.getElementById("already-voted").classList.remove("hidden");
+      return;
+    }
+    loadCandidates();
+  }
+
+  // Store candidates data for lookup in event delegation
+  let candidatesData = {};
+
+  async function loadCandidates() {
+    const candidates = await API.get("/api/candidates");
+    const grid = document.getElementById("candidates-grid");
+    grid.innerHTML = "";
+    candidatesData = {};
+
+    if (!candidates || candidates.length === 0) {
+      grid.innerHTML = `<div style="text-align:center; padding:3rem; grid-column:1/-1; color:var(--text-muted);">لا يوجد مرشحون حالياً</div>`;
+      return;
+    }
+
+    candidates.forEach(c => {
+      candidatesData[c.id] = c;
+      const card = document.createElement("div");
+      card.className = "candidate-card";
+      card.dataset.id = c.id;
+      card.dataset.name = c.name;
+      card.style.cursor = "pointer";
+      card.innerHTML = `
+        <img class="candidate-photo" src="${c.photo || '/static/images/default-candidate.jpg'}"
+             onerror="this.src='/static/images/default-candidate.jpg'" alt="${c.name}">
+        <div class="candidate-name">${c.name}</div>
+        <div class="candidate-party">🏛️ ${c.party || "مستقل"}</div>
+        <div class="candidate-bio">${c.bio || ""}</div>
+      `;
+      grid.appendChild(card);
+    });
+
+    // Use event delegation on the grid instead of per-card listeners
+    grid.onclick = function(e) {
+      const card = e.target.closest(".candidate-card");
+      if (!card) return;
+      selectCandidate(card.dataset.id, card.dataset.name, card);
+    };
+  }
+
+  function selectCandidate(id, name, cardEl) {
+    document.querySelectorAll(".candidate-card").forEach(c => c.classList.remove("selected"));
+    cardEl.classList.add("selected");
+    selectedId = id;
+    selectedNameText = name;
+    document.getElementById("selected-name").textContent = name;
+    document.getElementById("selected-info").style.display = "block";
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = false;
+    btn.removeAttribute("disabled");
+  }
+
+  function showConfirm() {
+    if (!selectedId) return;
+    document.getElementById("modal-candidate-name").textContent = selectedNameText;
+    document.getElementById("confirm-modal").classList.remove("hidden");
+  }
+
+  function closeModal() {
+    document.getElementById("confirm-modal").classList.add("hidden");
+  }
+
+  async function submitVote() {
+    const btn = document.getElementById("confirm-vote-btn");
+    btn.disabled = true; btn.textContent = "⏳ جاري التصويت...";
+
+    const res = await API.post("/api/vote", { candidate_id: selectedId });
+    if (res.success) {
+      window.location.href = "/success";
+    } else {
+      closeModal();
+      document.getElementById("alert-box").innerHTML =
+        `<div class="alert alert-danger">❌ ${res.message}</div>`;
+      btn.disabled = false; btn.textContent = "✅ نعم، أؤكد";
+    }
+  }
+
+  async function doLogout() {
+    await API.post("/api/logout", {});
+    window.location.href = "/login";
+  }
+
+  init();
+</script>
+</body>
+</html>

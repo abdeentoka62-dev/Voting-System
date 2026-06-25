@@ -1,0 +1,5 @@
+cd desktop
+cd voting-system
+conda activate voting-env
+python run.py
+

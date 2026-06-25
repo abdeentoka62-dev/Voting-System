@@ -1,0 +1,2 @@
+ضع صور المرشحين هنا بأسماء: c1.jpg, c2.jpg, c3.jpg, c4.jpg
+وصورة افتراضية باسم: default-candidate.jpg

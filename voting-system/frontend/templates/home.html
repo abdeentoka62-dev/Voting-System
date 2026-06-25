@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الصفحة الرئيسية - نظام التصويت</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 60%, #1e40af 100%);
+      color: #fff; padding: 4rem 2rem; text-align: center; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='50' cy='50' r='40' fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='1'/%3E%3C/svg%3E") repeat;
+      pointer-events: none; /* This is critical - allows clicks to pass through */
+      z-index: 0;
+    }
+    .hero > * {
+      position: relative;
+      z-index: 1;
+    }
+    .hero-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 1rem; position: relative; }
+    .hero-sub   { font-size: 1.1rem; opacity: 0.85; max-width: 600px; margin: 0 auto 2rem; position: relative; }
+    .hero-badge {
+      display: inline-block; background: var(--accent); color: #fff;
+      padding: 0.4rem 1.2rem; border-radius: 20px; font-size: 0.9rem; font-weight: 700;
+      margin-bottom: 1.5rem; position: relative;
+    }
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.5rem; margin: 2rem 0;
+    }
+    .info-card {
+      background: var(--card); border-radius: var(--radius); padding: 1.75rem;
+      box-shadow: var(--shadow); border-top: 4px solid var(--primary);
+      transition: transform 0.2s;
+    }
+    .info-card:hover { transform: translateY(-4px); }
+    .info-card.gold  { border-top-color: var(--accent); }
+    .info-card.green { border-top-color: var(--success); }
+    .info-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .info-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .info-text  { font-size: 0.9rem; color: var(--text-muted); line-height: 1.7; }
+    .countdown-wrap {
+      background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+      border-radius: var(--radius); padding: 1.5rem; display: inline-flex;
+      gap: 2rem; margin-bottom: 2rem; position: relative;
+    }
+    .count-item { text-align: center; }
+    .count-num  { font-size: 2.5rem; font-weight: 900; line-height: 1; }
+    .count-lbl  { font-size: 0.8rem; opacity: 0.8; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="/home" class="navbar-brand">🗳️ <span>نظام التصويت</span></a>
+  <div class="navbar-nav">
+    <a href="/results" class="nav-link">📊 <span>النتائج</span></a>
+    <span class="nav-link" id="user-name" style="color:#fff; font-weight:700;"></span>
+    <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,0.5);padding:0.4rem 1rem;font-size:0.85rem;" onclick="doLogout()">خروج</button>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">🗓️ الانتخابات 2026</div>
+  <h1 class="hero-title">مرحباً بك في نظام التصويت الإلكتروني</h1>
+  <p class="hero-sub">
+    نظام تصويت آمن وشفاف يضمن حقك في المشاركة السياسية.
+    صوتك يُحدث الفرق — كل صوت يُحسب.
+  </p>
+
+  <!-- Countdown -->
+  <div class="countdown-wrap" id="countdown-wrap">
+    <div class="count-item"><div class="count-num" id="c-days">00</div><div class="count-lbl">يوم</div></div>
+    <div class="count-item"><div class="count-num" id="c-hours">00</div><div class="count-lbl">ساعة</div></div>
+    <div class="count-item"><div class="count-num" id="c-mins">00</div><div class="count-lbl">دقيقة</div></div>
+    <div class="count-item"><div class="count-num" id="c-secs">00</div><div class="count-lbl">ثانية</div></div>
+  </div>
+
+  <div id="vote-action">
+    <a href="/vote" id="vote-link" style="text-decoration:none;">
+      <button class="btn btn-accent" style="font-size:1.15rem; padding:1rem 3rem;" id="vote-btn">
+        🗳️ ابدأ التصويت الآن
+      </button>
+    </a>
+  </div>
+</div>
+
+<!-- Content -->
+<div class="container page-content">
+
+  <!-- Info Cards -->
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-icon">🔒</div>
+      <div class="info-title">أمان تام</div>
+      <div class="info-text">يستخدم النظام تشفير متقدم وتقنية التعرف على الوجه لضمان هوية الناخب وحماية صوته.</div>
+    </div>
+    <div class="info-card gold">
+      <div class="info-icon">👁️</div>
+      <div class="info-title">شفافية كاملة</div>
+      <div class="info-text">النتائج تُعرض فورياً بعد انتهاء التصويت بشكل شفاف وموثوق لجميع المواطنين.</div>
+    </div>
+    <div class="info-card green">
+      <div class="info-icon">⚡</div>
+      <div class="info-title">سرعة وسهولة</div>
+      <div class="info-text">عملية التصويت لا تستغرق أكثر من دقيقتين من أي مكان وفي أي وقت.</div>
+    </div>
+    <div class="info-card" style="border-top-color:#8b5cf6;">
+      <div class="info-icon">🤖</div>
+      <div class="info-title">ذكاء اصطناعي</div>
+      <div class="info-text">نستخدم نموذج ArcFace للتعرف على الوجه بدقة تتجاوز 99.5% لمنع أي تزوير.</div>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="card">
+    <h2 style="font-size:1.4rem; font-weight:800; margin-bottom:1.5rem; color:var(--primary);">
+      📋 كيف تصوّت؟
+    </h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:1rem;">
+      <div style="text-align:center; padding:1rem;">
+        <div style="width:50px;height:50px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;margin:0 auto 0.75rem;">1</div>
+        <div style="font-weight:700;">سجّل دخولك</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);">بالرقم القومي وكلمة السر</div>
+      </div>
+      <div style="text-align:center; padding:1rem;">
+        <div style="width:50px;height:50px;background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;margin:0 auto 0.75rem;">2</div>
+        <div style="font-weight:700;">تحقق من هويتك</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);">بصمة الوجه + كود OTP</div>
+      </div>
+      <div style="text-align:center; padding:1rem;">
+        <div style="width:50px;height:50px;background:var(--success);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;margin:0 auto 0.75rem;">3</div>
+        <div style="font-weight:700;">اختر مرشحك</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);">من قائمة المرشحين</div>
+      </div>
+      <div style="text-align:center; padding:1rem;">
+        <div style="width:50px;height:50px;background:#8b5cf6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;margin:0 auto 0.75rem;">4</div>
+        <div style="font-weight:700;">أكّد تصويتك</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);">صوتك محفوظ ومشفر</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  // Countdown to election day
+  const electionDate = new Date("2026-06-15T08:00:00");
+  function updateCountdown() {
+    const now  = new Date();
+    const diff = electionDate - now;
+    if (diff <= 0) {
+      document.getElementById("countdown-wrap").innerHTML = '<div style="font-size:1.5rem;font-weight:800;">🗳️ التصويت جارٍ الآن!</div>';
+      return;
+    }
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    document.getElementById("c-days").textContent  = String(d).padStart(2,"0");
+    document.getElementById("c-hours").textContent = String(h).padStart(2,"0");
+    document.getElementById("c-mins").textContent  = String(m).padStart(2,"0");
+    document.getElementById("c-secs").textContent  = String(s).padStart(2,"0");
+  }
+  setInterval(updateCountdown, 1000);
+  updateCountdown();
+
+  async function init() {
+    try {
+      console.log("Initializing home page...");
+      const data = await requireAuth();
+      console.log("Auth data received:", data);
+      
+      if (!data) {
+        console.error("No auth data returned");
+        return;
+      }
+      
+      document.getElementById("user-name").textContent = "👤 " + data.name;
+      
+      const voteBtn = document.getElementById("vote-btn");
+      const voteLink = document.getElementById("vote-link");
+      console.log("Vote button element:", voteBtn);
+      
+      if (data.has_voted) {
+        voteBtn.textContent = "✅ لقد صوّتت بالفعل";
+        voteBtn.disabled = true;
+        voteBtn.style.background = "rgba(255,255,255,0.2)";
+        voteBtn.style.cursor = "not-allowed";
+        voteLink.style.pointerEvents = "none";
+      } else {
+        voteBtn.disabled = false;
+        voteBtn.style.cursor = "pointer";
+        voteLink.style.pointerEvents = "auto";
+        console.log("Vote button enabled");
+      }
+      
+      if (data.is_admin) {
+        const nav = document.querySelector(".navbar-nav");
+        nav.insertAdjacentHTML("afterbegin", '<a href="/admin" class="nav-link">⚙️ <span>لوحة التحكم</span></a>');
+      }
+      
+      console.log("Initialization complete");
+    } catch (error) {
+      console.error("Error in init:", error);
+    }
+  }
+
+  async function doLogout() {
+    await API.post("/api/logout", {});
+    window.location.href = "/login";
+  }
+
+  init();
+</script>
+</body>
+</html>

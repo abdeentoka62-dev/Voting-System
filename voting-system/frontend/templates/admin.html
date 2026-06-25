@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم - نظام التصويت</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .tab-nav {
+      display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--border); padding-bottom: 0;
+    }
+    .tab-btn {
+      padding: 0.75rem 1.5rem; border: none; background: none;
+      font-family: 'Cairo', sans-serif; font-size: 0.95rem; font-weight: 700;
+      color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent;
+      margin-bottom: -2px; transition: all 0.2s;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="/home" class="navbar-brand">🗳️ <span>لوحة التحكم</span></a>
+  <div class="navbar-nav">
+    <a href="/home" class="nav-link">🏠 <span>الرئيسية</span></a>
+    <a href="/results" class="nav-link">📊 <span>النتائج</span></a>
+    <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,0.5);padding:0.4rem 1rem;font-size:0.85rem;" onclick="doLogout()">خروج</button>
+  </div>
+</nav>
+
+<div style="background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:#fff; padding:2rem;">
+  <h1 style="font-size:1.8rem; font-weight:900;">⚙️ لوحة تحكم المشرف</h1>
+  <p style="opacity:0.85;">إدارة الانتخابات والمرشحين والمستخدمين</p>
+</div>
+
+<div class="container page-content">
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="stat-number" id="s-users">-</div><div class="stat-label">إجمالي الناخبين</div></div>
+    <div class="stat-card gold"><div class="stat-number" id="s-voted">-</div><div class="stat-label">صوّتوا</div></div>
+    <div class="stat-card green"><div class="stat-number" id="s-notvoted">-</div><div class="stat-label">لم يصوّتوا</div></div>
+    <div class="stat-card" style="border-top-color:#8b5cf6;"><div class="stat-number" id="s-total">-</div><div class="stat-label">إجمالي الأصوات</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="card">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('candidates')">🏛️ المرشحون</button>
+      <button class="tab-btn" onclick="switchTab('users')">👥 المستخدمون</button>
+      <button class="tab-btn" onclick="switchTab('votes')">📊 الأصوات</button>
+    </div>
+
+    <!-- Candidates Tab -->
+    <div class="tab-content active" id="tab-candidates">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="font-weight:800; color:var(--primary);">قائمة المرشحين</h3>
+        <button class="btn btn-primary" onclick="showAddCandidate()">+ إضافة مرشح</button>
+      </div>
+      <div class="table-wrap">
+        <table id="candidates-table">
+          <thead><tr><th>#</th><th>الاسم</th><th>الحزب</th><th>الأصوات</th><th>إجراءات</th></tr></thead>
+          <tbody id="candidates-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Users Tab -->
+    <div class="tab-content" id="tab-users">
+      <h3 style="font-weight:800; color:var(--primary); margin-bottom:1rem;">قائمة الناخبين</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>الاسم</th><th>الرقم القومي</th><th>حالة التصويت</th></tr></thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Votes Tab -->
+    <div class="tab-content" id="tab-votes">
+      <h3 style="font-weight:800; color:var(--primary); margin-bottom:1.5rem;">توزيع الأصوات</h3>
+      <div id="votes-chart"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Candidate Modal -->
+<div class="modal-overlay hidden" id="add-modal">
+  <div class="card" style="max-width:460px; width:90%;">
+    <h3 style="font-weight:800; margin-bottom:1.5rem; color:var(--primary);">➕ إضافة مرشح جديد</h3>
+    <div id="modal-alert"></div>
+    <div class="form-group">
+      <label class="form-label">اسم المرشح</label>
+      <input type="text" id="c-name" class="form-control" placeholder="الاسم الكامل">
+    </div>
+    <div class="form-group">
+      <label class="form-label">الحزب</label>
+      <input type="text" id="c-party" class="form-control" placeholder="اسم الحزب أو مستقل">
+    </div>
+    <div class="form-group">
+      <label class="form-label">نبذة مختصرة</label>
+      <textarea id="c-bio" class="form-control" rows="3" placeholder="نبذة عن المرشح..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">رابط الصورة (اختياري)</label>
+      <input type="text" id="c-photo" class="form-control" placeholder="/static/images/c1.jpg">
+    </div>
+    <div style="display:flex; gap:1rem; margin-top:1rem;">
+      <button class="btn btn-primary" style="flex:1;" onclick="addCandidate()">حفظ</button>
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  async function init() {
+    const data = await requireAuth(true);
+    if (!data) return;
+    loadStats();
+    loadCandidates();
+    loadUsers();
+  }
+
+  async function loadStats() {
+    const s = await API.get("/api/admin/stats");
+    document.getElementById("s-users").textContent    = s.total_users;
+    document.getElementById("s-voted").textContent    = s.voted;
+    document.getElementById("s-notvoted").textContent = s.not_voted;
+    document.getElementById("s-total").textContent    = s.total_votes;
+    renderVotesChart(s.candidates);
+  }
+
+  async function loadCandidates() {
+    const list = await API.get("/api/candidates");
+    const tbody = document.getElementById("candidates-tbody");
+    tbody.innerHTML = list.map((c, i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td><strong>${c.name}</strong></td>
+        <td>${c.party || "مستقل"}</td>
+        <td><strong style="color:var(--primary);">${c.votes ?? 0}</strong></td>
+        <td>
+          <button class="btn btn-danger" style="padding:0.3rem 0.8rem;font-size:0.8rem;" onclick="deleteCandidate(${c.id})">حذف</button>
+        </td>
+      </tr>`).join("");
+  }
+
+  async function loadUsers() {
+    const list = await API.get("/api/admin/users");
+    const tbody = document.getElementById("users-tbody");
+    tbody.innerHTML = list.map((u, i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td>${u.name}</td>
+        <td style="direction:ltr; text-align:right;">${u.national_id}</td>
+        <td><span class="badge badge-${u.has_voted?'success':'danger'}">${u.has_voted?'✅ صوّت':'⏳ لم يصوّت'}</span></td>
+      </tr>`).join("");
+  }
+
+  function renderVotesChart(candidates) {
+    const wrap = document.getElementById("votes-chart");
+    if (!candidates || !candidates.length) { wrap.innerHTML = '<p style="color:var(--text-muted);">لا توجد بيانات</p>'; return; }
+    const total = candidates.reduce((s, c) => s + c.votes, 0) || 1;
+    wrap.innerHTML = candidates.map((c, i) => `
+      <div class="result-item">
+        <div class="result-header">
+          <div><strong>${c.name}</strong> <span style="color:var(--text-muted); font-size:0.85rem;">${c.party||""}</span></div>
+          <div class="result-votes">${c.votes} صوت</div>
+        </div>
+        <div class="result-bar-wrap">
+          <div class="result-bar ${i===0?'gold':''}" style="width:0%" data-width="${Math.round(c.votes/total*100)}%"></div>
+        </div>
+        <div class="result-percent">${Math.round(c.votes/total*100)}%</div>
+      </div>`).join("");
+    setTimeout(() => {
+      document.querySelectorAll(".result-bar").forEach(b => b.style.width = b.dataset.width);
+    }, 100);
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll(".tab-btn").forEach((b,i) => {
+      b.classList.toggle("active", ["candidates","users","votes"][i] === name);
+    });
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    document.getElementById(`tab-${name}`).classList.add("active");
+  }
+
+  function showAddCandidate() {
+    document.getElementById("add-modal").classList.remove("hidden");
+  }
+  function closeModal() {
+    document.getElementById("add-modal").classList.add("hidden");
+    document.getElementById("modal-alert").innerHTML = "";
+  }
+
+  async function addCandidate() {
+    const name  = document.getElementById("c-name").value.trim();
+    const party = document.getElementById("c-party").value.trim();
+    const bio   = document.getElementById("c-bio").value.trim();
+    const photo = document.getElementById("c-photo").value.trim();
+    if (!name) { document.getElementById("modal-alert").innerHTML = '<div class="alert alert-warning">⚠️ اسم المرشح مطلوب</div>'; return; }
+
+    const res = await API.post("/api/admin/candidates", { name, party, bio, photo });
+    if (res.success) {
+      closeModal();
+      loadCandidates();
+      loadStats();
+      showToast("✅ تم إضافة المرشح بنجاح", "success");
+    } else {
+      document.getElementById("modal-alert").innerHTML = `<div class="alert alert-danger">❌ ${res.message}</div>`;
+    }
+  }
+
+  async function deleteCandidate(id) {
+    if (!confirm("هل أنت متأكد من حذف هذا المرشح؟")) return;
+    const res = await fetch(`http://127.0.0.1:5000/api/admin/candidates/${id}`, {
+      method: "DELETE", credentials: "include"
+    });
+    const data = await res.json();
+    if (data.success) { loadCandidates(); loadStats(); showToast("تم الحذف", "info"); }
+  }
+
+  async function doLogout() {
+    await API.post("/api/logout", {});
+    window.location.href = "/login";
+  }
+
+  init();
+</script>
+</body>
+</html>

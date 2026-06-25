@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول - نظام التصويت الإلكتروني</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="page-bg" style="display:flex; align-items:center; justify-content:center; padding:2rem;">
+  <div style="width:100%; max-width:460px; position:relative; z-index:2;">
+
+    <div class="logo-wrap" style="margin-bottom:1.5rem;">
+      <div class="logo-icon">🗳️</div>
+      <div class="logo-title" style="color:#fff;">نظام التصويت الإلكتروني</div>
+      <div class="logo-subtitle" style="color:rgba(255,255,255,0.7);">الانتخابات 2026</div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:1.4rem; font-weight:800; margin-bottom:1.5rem; color:var(--primary);">
+        🔐 تسجيل الدخول
+      </h2>
+
+      <div id="alert-box"></div>
+
+      <div id="step-password">
+        <div class="form-group">
+          <label class="form-label">الرقم القومي / المعرف</label>
+          <input type="text" id="national-id" class="form-control" placeholder="أدخل رقمك القومي" maxlength="14">
+        </div>
+        <div class="form-group">
+          <label class="form-label">كلمة السر</label>
+          <div style="position:relative;">
+            <input type="password" id="password" class="form-control" placeholder="أدخل كلمة السر" style="padding-left:3rem;">
+            <button onclick="togglePass()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.2rem;" id="eye-btn">👁️</button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doLogin()" id="login-btn">
+          تسجيل الدخول
+        </button>
+      </div>
+
+      <div id="step-face" class="hidden">
+        <div class="alert alert-info">📸 ضع وجهك أمام الكاميرا للتحقق من هويتك</div>
+        <div class="camera-wrap">
+          <video id="video" autoplay muted playsinline></video>
+          <canvas id="canvas" style="display:none;"></canvas>
+          <div class="camera-overlay">
+            <div class="face-guide"></div>
+          </div>
+          <div class="camera-status" id="cam-status">جاري تشغيل الكاميرا...</div>
+        </div>
+        <div style="display:flex; gap:1rem; margin-top:1rem;">
+          <button class="btn btn-primary" style="flex:1;" onclick="captureAndVerify()" id="capture-btn" disabled>
+            📸 التقاط والتحقق
+          </button>
+          <button class="btn btn-outline" onclick="backToPassword()">رجوع</button>
+        </div>
+        <div id="face-result" class="mt-2"></div>
+      </div>
+
+      <div id="step-otp" class="hidden">
+        <div class="alert alert-success">✅ تم التحقق من الوجه بنجاح!</div>
+        
+        <div id="telegram-status"></div>
+        
+        <p style="text-align:center; color:var(--text-muted); margin-bottom:0.5rem;">
+          أدخل كود التحقق (5 أرقام)
+        </p>
+        <div class="otp-inputs">
+          <input type="text" class="otp-input" maxlength="1" oninput="otpNext(this,0)">
+          <input type="text" class="otp-input" maxlength="1" oninput="otpNext(this,1)">
+          <input type="text" class="otp-input" maxlength="1" oninput="otpNext(this,2)">
+          <input type="text" class="otp-input" maxlength="1" oninput="otpNext(this,3)">
+          <input type="text" class="otp-input" maxlength="1" oninput="otpNext(this,4)">
+        </div>
+        <button class="btn btn-success btn-full" onclick="verifyOTP()">تأكيد الكود ✓</button>
+      </div>
+
+      <div class="divider">أو</div>
+      <p class="text-center" style="font-size:0.9rem; color:var(--text-muted);">
+        ليس لديك حساب؟
+        <a href="/signup" style="color:var(--primary-light); font-weight:700;">إنشاء حساب جديد</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  let passVisible = false;
+
+  function togglePass() {
+    passVisible = !passVisible;
+    document.getElementById("password").type = passVisible ? "text" : "password";
+    document.getElementById("eye-btn").textContent = passVisible ? "🙈" : "👁️";
+  }
+
+  function showAlert(msg, type) {
+    document.getElementById("alert-box").innerHTML =
+      `<div class="alert alert-${type}">${msg}</div>`;
+  }
+
+  async function doLogin() {
+    const nid = document.getElementById("national-id").value.trim();
+    const pwd = document.getElementById("password").value;
+    if (!nid || !pwd) { showAlert("⚠️ أدخل الرقم القومي وكلمة السر", "warning"); return; }
+
+    const btn = document.getElementById("login-btn");
+    btn.disabled = true; btn.textContent = "جاري التحقق...";
+
+    const res = await API.post("/api/login", { national_id: nid, password: pwd });
+    btn.disabled = false; btn.textContent = "تسجيل الدخول";
+
+    if (res.success) {
+      document.getElementById("step-password").classList.add("hidden");
+      document.getElementById("step-face").classList.remove("hidden");
+      startCamera();
+    } else {
+      showAlert("❌ " + res.message, "danger");
+    }
+  }
+
+  async function startCamera() {
+    const video = document.getElementById("video");
+    document.getElementById("cam-status").textContent = "جاري تشغيل الكاميرا...";
+    document.getElementById("capture-btn").disabled = true;
+    const ok = await Camera.start(video);
+    if (ok) {
+      document.getElementById("cam-status").textContent = "✅ الكاميرا تعمل - ضع وجهك داخل الإطار";
+      document.getElementById("capture-btn").disabled = false;
+    } else {
+      document.getElementById("cam-status").textContent = "❌ تعذر تشغيل الكاميرا - تأكد من إذن الكاميرا";
+    }
+  }
+
+  async function captureAndVerify() {
+    const video  = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const btn    = document.getElementById("capture-btn");
+
+    if (!video.videoWidth || !video.videoHeight) {
+      document.getElementById("face-result").innerHTML =
+        `<div class="alert alert-warning">⚠️ الكاميرا لم تتحمل بعد، انتظر لحظة وحاول مرة أخرى</div>`;
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = "⏳ جاري التحليل...";
+    document.getElementById("cam-status").textContent = "🔍 جاري التحقق من الوجه...";
+
+    const img = Camera.capture(video, canvas);
+    const res = await API.post("/api/verify-face", { face_image: img });
+
+    if (res.success) {
+      Camera.stop();
+      if (res.is_admin) {
+        window.location.href = "/admin";
+      } else {
+        document.getElementById("step-face").classList.add("hidden");
+        document.getElementById("step-otp").classList.remove("hidden");
+        
+        // Update Telegram status - Modified for clean UI
+        const statusDiv = document.getElementById("telegram-status");
+        if (res.telegram_linked) {
+          statusDiv.innerHTML = `
+            <div class="alert alert-success" style="margin-bottom:1rem;">
+              ✅ تم إرسال الكود على <strong>التليجرام</strong>
+            </div>`;
+        } else {
+          // Hide linking suggestions as requested
+          statusDiv.innerHTML = ""; 
+        }
+      }
+    } else {
+      btn.disabled = false; btn.textContent = "📸 التقاط والتحقق";
+      document.getElementById("cam-status").textContent = "حاول مرة أخرى";
+      document.getElementById("face-result").innerHTML =
+        `<div class="alert alert-danger">❌ ${res.message}</div>`;
+    }
+  }
+
+  function backToPassword() {
+    Camera.stop();
+    document.getElementById("step-face").classList.add("hidden");
+    document.getElementById("step-password").classList.remove("hidden");
+  }
+
+  function otpNext(el, idx) {
+    el.value = el.value.replace(/\D/g, "");
+    const inputs = document.querySelectorAll(".otp-input");
+    if (el.value && idx < 4) inputs[idx + 1].focus();
+  }
+
+  async function verifyOTP() {
+    const inputs = document.querySelectorAll(".otp-input");
+    const otp = Array.from(inputs).map(i => i.value).join("");
+    if (otp.length < 5) { showToast("أدخل الكود كاملاً (5 أرقام)", "warning"); return; }
+
+    const res = await API.post("/api/verify-otp", { otp });
+    if (res.success) {
+      showToast("✅ تم تسجيل الدخول بنجاح!", "success");
+      setTimeout(() => window.location.href = "/home", 1000);
+    } else {
+      showToast("❌ " + res.message, "danger");
+    }
+  }
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      if (!document.getElementById("step-password").classList.contains("hidden")) doLogin();
+    }
+  });
+</script>
+</body>
+</html>
